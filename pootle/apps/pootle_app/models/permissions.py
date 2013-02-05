@@ -21,7 +21,7 @@
 
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Permission, Group
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.utils.encoding import iri_to_uri
@@ -63,6 +63,15 @@ def get_permissions_by_username(username, directory):
     permissions_cache = cache.get(key, {})
 
     if pootle_path not in permissions_cache:
+        permissions = {}
+        try:
+            grouppermissionset = GroupPermissionSet.objects.filter(
+                directory__in=directory.trail(only_dirs=False),
+                profiles__user__username=username) \
+                        .order_by('-directory__pootle_path')[0]
+        except IndexError:
+            grouppermissionset = None
+
         try:
             permissionset = PermissionSet.objects.filter(
                 directory__in=directory.trail(only_dirs=False),
@@ -71,21 +80,33 @@ def get_permissions_by_username(username, directory):
         except IndexError:
             permissionset = None
 
-        if (len(path_parts) > 1 and path_parts[0] != 'projects' and
-            (permissionset is None or
-            len(filter(None, permissionset.directory.pootle_path.split('/'))) < 2)):
-                # Active permission at language level or higher, check project
-                # level permission
+        if (len(path_parts) > 1 and path_parts[0] != 'projects'):
+            # Active permission at language level or higher, check project
+            # level permission
+            project_path = '/projects/%s/' % path_parts[1]
+            if (permissionset is None or len(filter(None,
+                    permissionset.directory.pootle_path.split('/'))) < 2):
                 try:
-                    project_path = '/projects/%s/' % path_parts[1]
                     permissionset = PermissionSet.objects \
                             .get(directory__pootle_path=project_path,
                                  profile__user__username=username)
                 except PermissionSet.DoesNotExist:
                     pass
+            if (grouppermissionset is None or len(filter(None,
+                    grouppermissionset.directory.pootle_path.split('/'))) < 2):
+                try:
+                    grouppermissionset = GroupPermissionSet.objects \
+                            .get(directory__pootle_path=project_path,
+                                 profiles__user__username=username)
+                except GroupPermissionSet.DoesNotExist:
+                    pass
 
         if permissionset:
-            permissions_cache[pootle_path] = permissionset.to_dict()
+            permissions.update(permissionset.to_dict())
+        if grouppermissionset:
+            permissions.update(grouppermissionset.to_dict())
+        if (len(permissions)):
+            permissions_cache[pootle_path] = permissions
         else:
             permissions_cache[pootle_path] = None
 
@@ -179,3 +200,36 @@ class PermissionSet(models.Model):
         super(PermissionSet, self).delete(*args, **kwargs)
         key = iri_to_uri('Permissions:%s' % self.profile.user.username)
         cache.delete(key)
+
+class GroupPermissionSet(models.Model):
+
+    class Meta:
+        unique_together = ('group', 'directory')
+        app_label = "pootle_app"
+
+    group = models.ForeignKey(Group)
+    directory = models.ForeignKey('pootle_app.Directory',
+                                  related_name='group_permission_sets')
+    profiles = models.ManyToManyField('pootle_profile.PootleProfile',
+                                      related_name='group_permission_sets')
+
+    def __unicode__(self):
+        return "%s : %s" % (self.group.name,
+                            self.directory.pootle_path)
+
+    def to_dict(self):
+        permissions_iterator = self.group.permissions.iterator()
+        return dict((perm.codename, perm) for perm in permissions_iterator)
+
+    def save(self, *args, **kwargs):
+        super(GroupPermissionSet, self).save(*args, **kwargs)
+        for profile in self.profiles.all():
+            key = iri_to_uri('Permissions:%s' % profile.user.username)
+            cache.delete(key)
+
+    def delete(self, *args, **kwargs):
+        users = [profile.user.username for profile in self.profiles.all()]
+        super(GroupPermissionSet, self).delete(*args, **kwargs)
+        for username in users:
+            key = iri_to_uri('Permissions:%s' % username)
+            cache.delete(key)

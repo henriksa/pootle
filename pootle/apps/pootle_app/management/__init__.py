@@ -23,7 +23,7 @@ import logging
 
 from django.db.models.signals import post_syncdb, pre_delete, post_delete
 from django.utils.translation import ugettext_noop as _
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import User, Permission, Group
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 
@@ -32,7 +32,8 @@ from pootle_app.models import Directory
 from pootle_language.models import Language
 from pootle_project.models import Project
 from pootle_profile.models import PootleProfile
-from pootle_app.models.permissions import PermissionSet, get_pootle_permission
+from pootle_app.models.permissions import PermissionSet, GroupPermissionSet, \
+        get_pootle_permission, get_pootle_permissions
 from pootle_misc import siteconfig
 
 from pootle.__version__ import build as code_buildversion
@@ -124,6 +125,26 @@ def create_pootle_permission_sets():
         permission_set.positive_permissions = [view]
         permission_set.save()
 
+def create_pootle_groups():
+    """Create the initial groups and assign permissions."""
+
+    perms = get_pootle_permissions()
+
+    group, created = Group.objects.get_or_create(name=_("administrator"))
+    if created:
+        group.permissions = perms.values()
+        group.save()
+
+    perms.pop('administrate')
+    perms.pop('overwrite')
+    perms.pop('commit')
+    perms.pop('review')
+
+    group, created = Group.objects.get_or_create(name=_("default"))
+    if created:
+        group.permissions = perms.values()
+        group.save()
+
 def require_english():
     en, created = Language.objects.get_or_create(code="en", fullname=u"English",
                                                  nplurals=2, pluralequation="(n != 1)")
@@ -168,6 +189,8 @@ def post_syncdb_handler(sender, created_models, **kwargs):
     if PermissionSet in created_models:
         create_pootle_permissions()
         create_pootle_permission_sets()
+    if GroupPermissionSet in created_models:
+        create_pootle_groups()
 
     config = siteconfig.load_site_config()
     if not config.get('BUILDVERSION', None):

@@ -9,7 +9,10 @@ from pootle.tests import PootleTestCase, formset_dict
 from pootle_project.models import Project
 from pootle_language.models import Language
 from pootle_store.models import Store
+from pootle_app.models import GroupPermissionSet
+from pootle_profile.models import PootleProfile
 
+from django.contrib.auth.models import Group
 
 def unit_dict(pootle_path):
     """prepare a translation submission dictioanry with values from
@@ -447,3 +450,32 @@ class NonprivTests(PootleTestCase):
         self.assertFalse('msgstr "samaka"' in store.file.read())
         suggestions = [str(sug) for sug in store.findunit('test').get_suggestions()]
         self.assertTrue('samaka' in suggestions)
+
+class GroupPermissionTests(PootleTestCase):
+    def setUp(self):
+        super(GroupPermissionTests, self).setUp()
+
+        group = Group.objects.get(name='administrator')
+        tutorial = Project.objects.get(code="tutorial")
+        self.group_permission = GroupPermissionSet.objects.create(
+            directory=tutorial.directory, group=group)
+        self.client.login(username='nonpriv', password='nonpriv')
+
+    def tearDown(self):
+        self.group_permission.delete()
+        super(GroupPermissionTests, self).tearDown()
+
+    def test_admin_group(self):
+        """Tests user project administration group permissions."""
+        response = self.client.get('/projects/tutorial/admin.html')
+        self.assertContains(response, '', status_code=403)
+
+        profile = PootleProfile.objects.get(user__username='nonpriv')
+        self.group_permission.profiles.add(profile)
+        self.group_permission.save()
+
+        response = self.client.get('/projects/tutorial/admin.html')
+        self.assertContains(response, '', status_code=200)
+
+        response = self.client.get('/projects/terminology/admin.html')
+        self.assertContains(response, '', status_code=403)

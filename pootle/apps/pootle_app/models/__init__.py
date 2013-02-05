@@ -21,6 +21,6 @@
 
 from pootle_app.models.suggestion import Suggestion
 from pootle_app.models.directory import Directory
-from pootle_app.models.permissions import PermissionSet
+from pootle_app.models.permissions import PermissionSet, GroupPermissionSet
 
-__all__ = ["Suggestion", "Directory", "PermissionSet"]
+__all__ = ["Suggestion", "Directory", "PermissionSet", "GroupPermissionSet"]
