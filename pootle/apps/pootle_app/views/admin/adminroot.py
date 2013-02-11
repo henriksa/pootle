@@ -21,8 +21,13 @@
 
 
 from pootle_app.models.directory import Directory
-from pootle_app.views.admin.util import user_is_admin
-from pootle_app.views.admin.permissions import admin_permissions
+from pootle_app.models.permissions import get_permission_contenttype
+from pootle_app.views.admin.util import user_is_admin, edit
+from pootle_app.views.admin.permissions import admin_permissions, \
+		PermissionFormField
+
+from django import forms
+from django.contrib.auth.models import Group
 
 @user_is_admin
 def view(request):
@@ -32,3 +37,27 @@ def view(request):
         'directory': directory,
     }
     return admin_permissions(request, directory, "admin/admin_general_permissions.html", template_vars)
+
+@user_is_admin
+def group_permissions(request):
+    content_type = get_permission_contenttype()
+    permission_queryset = content_type.permission_set.exclude(
+            codename__in=[
+                'add_directory', 'change_directory', 'delete_directory',
+            ],
+    )
+
+    class GroupPermissionsForm(forms.ModelForm):
+
+        class Meta:
+            model = Group
+
+        permissions = PermissionFormField(
+                label=_('Permissions'),
+                queryset=permission_queryset,
+                required=False,
+        )
+
+    return edit(request, "admin/admin_general_group_permissions.html", Group, {},
+                     can_delete=True, form=GroupPermissionsForm,
+                     queryset=Group.objects.all().order_by('name'))

@@ -1,0 +1,16 @@
+{% extends "admin_profile_base.html" %}
+{% load i18n baseurl %}
+
+{% block title %}{% trans "Group Permissions" %} | {{ block.super }}{% endblock %}
+
+{% block body_id %}admingroupperms{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}<li>{% trans "Group permissions" %}</li>
+{% endblock %}
+
+{% block section_description %}{% trans "Here you can add, edit, and delete all the available permission groups in this Pootle server." %}{% endblock %}
+
+{% block section_body %}
+{% include "admin/admin_general.html" %}
+{% endblock %}
