@@ -21,10 +21,11 @@
 
 from django import forms
 from django.utils.translation import ugettext as _
+from django.contrib.auth.models import Group
 
 from pootle_app.models import Directory
 from pootle_app.models.permissions import (get_permission_contenttype,
-                                           PermissionSet)
+                                           PermissionSet, GroupPermissionSet)
 from pootle_app.views.admin import util
 from pootle_misc.forms import GroupedModelChoiceField
 from pootle_profile.models import PootleProfile
@@ -110,3 +111,43 @@ def admin_permissions(request, current_directory, template, context):
     return util.edit(request, template, PermissionSet, context, link,
                      linkfield='profile', queryset=directory_permissions,
                      can_delete=True, form=PermissionSetForm)
+
+
+def admin_groups(request, current_directory, template, context):
+    content_type = get_permission_contenttype()
+    permission_queryset = content_type.permission_set.exclude(
+            codename__in=[
+                'add_directory', 'change_directory', 'delete_directory',
+            ],
+    )
+
+    project = context.get('project', None)
+    language = context.get('language', None)
+
+    profile_queryset = PootleProfile.objects.filter(user__is_active=1)\
+            .exclude(user__username__in=('nobody', 'default'))\
+            .order_by('user__username')
+
+    class GroupUsersForm(forms.ModelForm):
+
+        class Meta:
+            model = GroupPermissionSet
+
+        directory = forms.ModelChoiceField(
+                queryset=Directory.objects.filter(pk=current_directory.pk),
+                initial=current_directory.pk,
+                widget=forms.HiddenInput,
+        )
+        group = forms.ModelChoiceField(
+                 label=_('Group'),
+                 queryset=Group.objects.all(),
+                 required=True,
+        )
+        profiles = forms.ModelMultipleChoiceField(
+                label=_('Users'), required=True, queryset=profile_queryset
+        )
+
+    link = lambda instance: unicode(instance.group)
+    return util.edit(request, template, GroupPermissionSet, context, link=link,
+            queryset=current_directory.group_permission_sets.order_by('group'),
+            can_delete=True, form=GroupUsersForm, linkfield='group')
