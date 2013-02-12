@@ -5,5 +5,6 @@
   {% if user.is_superuser or request.permissions.administrate %}
   <li><a href='{{ "admin.html"|l }}' class="projectadmin admintab" title="{% trans 'Administrate your project' %}">{% trans "Administrate" %}</a></li>
   <li><a href='{{ "permissions.html"|l }}' class="projectperm admintab" title="{% trans 'Manage project permissions' %}">{% trans "Permissions" %}</a></li>
+  <li><a href='{{ "groups.html"|l }}' class="projectgroups admintab" title="{% trans 'Manage project user groups' %}">{% trans "Groups" %}</a></li>
   {% endif %}
 </ul>

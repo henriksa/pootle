@@ -1,0 +1,34 @@
+{% extends "project_base.html" %}
+
+{% load i18n assets baseurl %}
+
+{% get_current_language as LANGUAGE_CODE %}
+
+{% block title %}{% trans "Groups" %} | {{ project.fullname }} | {{ block.super }}{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}<li><a href="{% filter l %}/projects/{{ project.code }}/{% endfilter %}">{{ project.fullname }}</a></li><li>{% trans "Groups" %}</li>
+{% endblock %}
+
+{% block css %}
+{{ block.super }}
+{% assets "css_admin" %}
+<link rel="stylesheet" type="text/css" href="{{ ASSET_URL }}" />
+{% endassets %}
+{% endblock %}
+
+{% block body_id %}projectgroups{% endblock %}
+
+{% block content %}
+<div class="settings-container centered" lang="{{ LANGUAGE_CODE }}">
+    <p class="info">{% trans "Below you can add, edit, and delete the user groups for this project." %}</p>
+
+    {% include "admin/admin_general.html" %}
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+{% assets "js_admin" %}
+<script type="text/javascript" src="{{ ASSET_URL }}"></script>
+{% endassets %}
+{% endblock %}

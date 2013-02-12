@@ -32,7 +32,8 @@ from pootle_app.models import Directory
 from pootle_app.models.permissions import (get_matching_permissions,
                                            check_permission)
 from pootle_app.views.admin import util
-from pootle_app.views.admin.permissions import admin_permissions
+from pootle_app.views.admin.permissions import admin_permissions, \
+        admin_groups
 from pootle_app.views.index.index import getprojects
 from pootle_app.views.language import dispatch
 from pootle_app.views.language.view import get_stats_headings
@@ -277,6 +278,25 @@ def project_admin_permissions(request, project_code):
 
     return admin_permissions(request, project.directory,
                              "project/admin_permissions.html", template_vars)
+
+def project_admin_groups(request, project_code):
+
+    project = get_object_or_404(Project, code=project_code)
+    request.permissions = get_matching_permissions(get_profile(request.user),
+                                                   project.directory)
+
+    if not check_permission('administrate', request):
+        raise PermissionDenied(_("You do not have rights to administer "
+                                 "this project."))
+
+    template_vars = {
+        "project": project,
+        "directory": project.directory,
+        "feed_path": project.pootle_path[1:],
+    }
+
+    return admin_groups(request, project.directory,
+                             "project/admin_groups.html", template_vars)
 
 
 def projects_index(request):
