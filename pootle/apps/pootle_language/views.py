@@ -27,7 +27,8 @@ from django.utils.translation import ugettext as _, ungettext
 from pootle.i18n.gettext import tr_lang
 from pootle_app.models.permissions import (get_matching_permissions,
                                            check_permission)
-from pootle_app.views.admin.permissions import admin_permissions
+from pootle_app.views.admin.permissions import admin_permissions, \
+        admin_groups
 from pootle_app.views.language import dispatch
 from pootle_app.views.language.item_dict import stats_descriptions
 from pootle_app.views.language.view import get_stats_headings
@@ -176,3 +177,19 @@ def language_admin(request, language_code):
         "feed_path": '%s/' % language.code,
     }
     return admin_permissions(request, language.directory, "language/language_admin.html", template_vars)
+
+
+def language_admin_groups(request, language_code):
+    # Check if the user can access this view
+    language = get_object_or_404(Language, code=language_code)
+    request.permissions = get_matching_permissions(get_profile(request.user),
+                                                   language.directory)
+    if not check_permission('administrate', request):
+        raise PermissionDenied(_("You do not have rights to administer this language."))
+
+    template_vars = {
+        "language": language,
+        "directory": language.directory,
+        "feed_path": '%s/' % language.code,
+    }
+    return admin_groups(request, language.directory, "language/admin_groups.html", template_vars)

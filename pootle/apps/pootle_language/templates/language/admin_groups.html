@@ -1,0 +1,24 @@
+{% extends "language_base.html" %}
+
+{% load assets i18n baseurl %}
+
+{% block title %}{% trans "Groups" %} | {{ block.super }}{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}<li>{% trans "Groups" %}</li>
+{% endblock %}
+
+{% block body_id %}languagegroups{% endblock %}
+
+{% block content %}
+<div class="settings-container centered" lang="{{ LANGUAGE_CODE }}">
+    <p class="info">{% trans "Below you can add, edit, and delete the user groups for this language." %}</p>
+    {% include "admin/admin_general.html" %}
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+{% assets "js_admin" %}
+<script type="text/javascript" src="{{ ASSET_URL }}"></script>
+{% endassets %}
+{% endblock %}
