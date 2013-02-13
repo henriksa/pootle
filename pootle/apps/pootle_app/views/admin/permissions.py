@@ -128,6 +128,9 @@ def admin_groups(request, current_directory, template, context):
             .exclude(user__username__in=('nobody', 'default'))\
             .order_by('user__username')
 
+    group_querysets = [(None, Group.objects.exclude(grouppermissionset__in=\
+            current_directory.group_permission_sets.all()))]
+
     class GroupUsersForm(forms.ModelForm):
 
         class Meta:
@@ -138,10 +141,11 @@ def admin_groups(request, current_directory, template, context):
                 initial=current_directory.pk,
                 widget=forms.HiddenInput,
         )
-        group = forms.ModelChoiceField(
-                 label=_('Group'),
-                 queryset=Group.objects.all(),
-                 required=True,
+        group = GroupedModelChoiceField(
+                label=_('Group'),
+                querysets=group_querysets,
+                queryset=Group.objects.all(),
+                required=True,
         )
         profiles = forms.ModelMultipleChoiceField(
                 label=_('Users'), required=True, queryset=profile_queryset
