@@ -27,6 +27,7 @@ from django.core.cache import cache
 from django.utils.encoding import iri_to_uri
 
 from pootle_app.lib.util import RelatedManager
+from pootle_profile.models import PootleProfile
 
 
 def get_permission_contenttype():
@@ -64,26 +65,26 @@ def get_permissions_by_username(username, directory):
 
     if pootle_path not in permissions_cache:
         permissions = {}
-        try:
-            grouppermissionset = GroupPermissionSet.objects.filter(
-                directory__in=directory.trail(only_dirs=False),
+
+        directory_trail = directory.trail(only_dirs=False)
+
+        gps_queryset = GroupPermissionSet.objects.filter(
+                directory__in=directory_trail,
                 profiles__user__username=username) \
-                        .order_by('-directory__pootle_path')[0]
-        except IndexError:
-            grouppermissionset = None
+                        .order_by('-directory__pootle_path')
 
         try:
             permissionset = PermissionSet.objects.filter(
-                directory__in=directory.trail(only_dirs=False),
+                directory__in=directory_trail,
                 profile__user__username=username) \
                         .order_by('-directory__pootle_path')[0]
         except IndexError:
             permissionset = None
 
         if (len(path_parts) > 1 and path_parts[0] != 'projects'):
+            project_path = '/projects/%s/' % path_parts[1]
             # Active permission at language level or higher, check project
             # level permission
-            project_path = '/projects/%s/' % path_parts[1]
             if (permissionset is None or len(filter(None,
                     permissionset.directory.pootle_path.split('/'))) < 2):
                 try:
@@ -92,19 +93,19 @@ def get_permissions_by_username(username, directory):
                                  profile__user__username=username)
                 except PermissionSet.DoesNotExist:
                     pass
-            if (grouppermissionset is None or len(filter(None,
-                    grouppermissionset.directory.pootle_path.split('/'))) < 2):
-                try:
-                    grouppermissionset = GroupPermissionSet.objects \
-                            .get(directory__pootle_path=project_path,
+
+            parent_dirs = [gps.directory for gps in gps_queryset if
+                    len(filter(None, gps.directory.pootle_path.split('/'))) < 2]
+            if (len(gps_queryset) == 0 or len(parent_dirs)):
+                gps_queryset = GroupPermissionSet.objects \
+                            .filter(directory__pootle_path=project_path,
                                  profiles__user__username=username)
-                except GroupPermissionSet.DoesNotExist:
-                    pass
 
         if permissionset:
             permissions.update(permissionset.to_dict())
-        if grouppermissionset:
-            permissions.update(grouppermissionset.to_dict())
+        for gps in gps_queryset:
+            permissions.update(gps.to_dict())
+
         if (len(permissions)):
             permissions_cache[pootle_path] = permissions
         else:
@@ -221,15 +222,71 @@ class GroupPermissionSet(models.Model):
         permissions_iterator = self.group.permissions.iterator()
         return dict((perm.codename, perm) for perm in permissions_iterator)
 
-    def save(self, *args, **kwargs):
-        super(GroupPermissionSet, self).save(*args, **kwargs)
-        for profile in self.profiles.all():
-            key = iri_to_uri('Permissions:%s' % profile.user.username)
-            cache.delete(key)
-
     def delete(self, *args, **kwargs):
         users = [profile.user.username for profile in self.profiles.all()]
         super(GroupPermissionSet, self).delete(*args, **kwargs)
         for username in users:
-            key = iri_to_uri('Permissions:%s' % username)
-            cache.delete(key)
+            cache.delete(iri_to_uri('Permissions:%s' % username))
+
+def group_users_changed(sender, **kwargs):
+    """GroupPermissionSet - PootleProfile M2M change signal handler
+    Clear user permission cache when users in group are modified.
+    """
+    action = kwargs['action']
+    instance = kwargs['instance']
+    if(kwargs['reverse']):
+        # instance is PootleProfile
+        if (action in ('post_add', 'post_remove', 'post_clear')):
+            cache.delete(iri_to_uri('Permissions:%s' % instance.user.username))
+    else:
+        # instance is GroupPermissionSet
+        if(action in ('post_add', 'post_remove')):
+            profile_query = instance.profiles.filter(pk__in=kwargs['pk_set'])
+        elif (action == 'pre_clear'):
+            profile_query = instance.profiles.all()
+        else:
+            return
+
+        for profile in profile_query:
+            cache.delete(iri_to_uri('Permissions:%s' % profile.user.username))
+
+models.signals.m2m_changed.connect(group_users_changed,
+        sender=GroupPermissionSet.profiles.through)
+
+def group_permissions_changed(sender, **kwargs):
+    """Group - Permission M2M change signal handler
+    Clear user permission cache when group permissions are modified.
+    """
+    action = kwargs['action']
+    instance = kwargs['instance']
+    profile_query = None
+    if(kwargs['reverse']):
+        # instance is Permission
+        if (action in ('post_add', 'post_remove')):
+            profile_query = PootleProfile.objects.filter(
+                group_permission_sets__group__pk__in=kwargs['pk_set'])
+        elif (action == 'pre_clear'):
+            profile_query = PootleProfile.objects.filter(
+                group_permission_sets__group__in=instance.groups)
+    elif (action in ('post_add', 'post_remove', 'post_clear')):
+        # instance is Group
+            profile_query = PootleProfile.objects.filter(
+                group_permission_sets__group__pk=instance.pk)
+    if (profile_query is not None):
+        for profile in profile_query:
+            cache.delete(iri_to_uri('Permissions:%s' % profile.user.username))
+
+models.signals.m2m_changed.connect(group_permissions_changed,
+        sender=Group.permissions.through)
+
+def group_deleted(sender, **kwargs):
+    """Group pre_delete signal handler
+    Clear user permissions cache when permisison group is deleted
+    """
+    instance = kwargs['instance']
+    profile_query = PootleProfile.objects.fiter(
+            group_permission_sets__group=instance)
+    for profile in profile_query:
+        cache.delete(iri_to_uri('Permissions:%s' % profile.user.username))
+
+models.signals.pre_delete.connect(group_deleted, sender=Group)
