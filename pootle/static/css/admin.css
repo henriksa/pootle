@@ -110,3 +110,9 @@ html[dir="rtl"] td.pootle_path
     margin-left: .25em;
     margin-right: .25em;
 }
+
+/* DualSelectMultiple widget */
+.dualselectmultiple div {
+    display: inline-block;
+    vertical-align: top;
+}

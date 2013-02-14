@@ -27,7 +27,7 @@ from pootle_app.models import Directory
 from pootle_app.models.permissions import (get_permission_contenttype,
                                            PermissionSet, GroupPermissionSet)
 from pootle_app.views.admin import util
-from pootle_misc.forms import GroupedModelChoiceField
+from pootle_misc.forms import GroupedModelChoiceField, DualSelectMultiple
 from pootle_profile.models import PootleProfile
 
 
@@ -148,7 +148,8 @@ def admin_groups(request, current_directory, template, context):
                 required=True,
         )
         profiles = forms.ModelMultipleChoiceField(
-                label=_('Users'), required=True, queryset=profile_queryset
+                label=_('Users'), required=True, queryset=profile_queryset,
+                widget=DualSelectMultiple
         )
 
     link = lambda instance: unicode(instance.group)

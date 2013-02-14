@@ -82,8 +82,8 @@ def form_set_as_table(formset, link=None, linkfield='code'):
             widget = form.fields[field].widget
             widget_name = widget.__class__.__name__
 
-            if widget.is_hidden or \
-               widget_name in ('CheckboxInput', 'SelectMultiple'):
+            if widget.is_hidden or widget_name in (
+                    'CheckboxInput', 'SelectMultiple', 'DualSelectMultiple'):
                 result.append('<th class="sorttable_nosort">')
             else:
                 result.append('<th>')

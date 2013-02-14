@@ -22,7 +22,7 @@
 from django import forms
 from django.core.validators import EMPTY_VALUES
 from django.utils.translation import ugettext_lazy as _
-
+from django.utils.safestring import mark_safe
 
 class GroupedModelChoiceField(forms.ModelChoiceField):
     def __init__(self, querysets, *args, **kwargs):
@@ -122,3 +122,15 @@ class TermSearchForm(SearchForm):
             ),
             initial=['source', 'target'],
     )
+
+class DualSelectMultiple(forms.SelectMultiple):
+    """SelectMultiple widget with separate list for available and selected."""
+
+    def render(self, name, value, attrs=None, choices=()):
+        output = [super(DualSelectMultiple, self).render(
+                name, value, attrs=attrs, choices=choices)]
+        output.append('<script type="text/javascript">')
+        output.append('$(function(){dualSelectMultipleInit("#id_%s")})' %
+                name)
+        output.append('</script>')
+        return mark_safe("\n".join(output))

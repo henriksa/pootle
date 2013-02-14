@@ -173,3 +173,36 @@ function noticeFormInit() {
   });
 
 };
+
+/* Converts multiple selection box into a dual select widget */
+function dualSelectMultipleInit(elem_id) {
+  var selected = $(elem_id);
+  var width = selected.width() + 5;
+  selected.parents('form').first().submit(function() {
+    selected.find('option').prop('selected', true);
+  });
+  selected.wrap('<div class="dualselectmultiple">');
+
+  var available = $('<select multiple="multiple">').insertBefore(selected);
+  var buttons = $('<div>').insertBefore(selected);
+  selected.width(width).wrap('<div>');
+  available.width(width).wrap('<div>');
+  selected.before(gettext('Selected'));
+  available.before(gettext('Available'));
+
+  available.prepend(selected.find('option').not(':selected'));
+  selected.find('option').prop('selected', false)
+
+  var add = $('<button type="button">&rarr;</button>')
+      .attr('title', gettext('Add'));
+  var remove = $('<button type="button">&larr;</button>')
+      .attr('title', gettext('Remove'));
+  buttons.append('<br>').append(add).append('<br>').append(remove);
+
+  add.click(function() {
+    selected.append(available.find('option:selected'));
+  });
+  remove.click(function() {
+    available.append(selected.find('option:selected'));
+  });
+};
