@@ -96,10 +96,12 @@ def get_permissions_by_username(username, directory):
 
             parent_dirs = [gps.directory for gps in gps_queryset if
                     len(filter(None, gps.directory.pootle_path.split('/'))) < 2]
-            if (len(gps_queryset) == 0 or len(parent_dirs)):
-                gps_queryset = GroupPermissionSet.objects \
+            if (len(gps_queryset) == 0 or len(parent_dirs) > 0):
+                project_gps_queryset = GroupPermissionSet.objects \
                             .filter(directory__pootle_path=project_path,
                                  profiles__user__username=username)
+                if(len(project_gps_queryset) > 0):
+                    gps_queryset = project_gps_queryset
 
         if permissionset:
             permissions.update(permissionset.to_dict())
