@@ -243,7 +243,7 @@ def group_users_changed(sender, **kwargs):
     else:
         # instance is GroupPermissionSet
         if(action in ('post_add', 'post_remove')):
-            profile_query = instance.profiles.filter(pk__in=kwargs['pk_set'])
+            profile_query = PootleProfile.objects.filter(pk__in=kwargs['pk_set'])
         elif (action == 'pre_clear'):
             profile_query = instance.profiles.all()
         else:
@@ -286,7 +286,7 @@ def group_deleted(sender, **kwargs):
     Clear user permissions cache when permisison group is deleted
     """
     instance = kwargs['instance']
-    profile_query = PootleProfile.objects.fiter(
+    profile_query = PootleProfile.objects.filter(
             group_permission_sets__group=instance)
     for profile in profile_query:
         cache.delete(iri_to_uri('Permissions:%s' % profile.user.username))
